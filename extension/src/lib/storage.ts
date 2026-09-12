@@ -1,5 +1,6 @@
 export interface Session {
   token: string;
+  refresh_token?: string;
   user: { id: string; email: string; created_at: string };
 }
 

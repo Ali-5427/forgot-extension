@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Bookmark, Lock, Mail, Loader2, Sparkles } from "lucide-react";
-import { api } from "../lib/api";
-import { getSession, setSession } from "../lib/storage";
+import { api, persistAuth } from "../lib/api";
+import { getSession } from "../lib/storage";
 
 type Mode = "login" | "signup";
 
@@ -27,7 +27,7 @@ export default function AuthApp() {
     try {
       const fn = mode === "login" ? api.login : api.signup;
       const res = await fn(email.trim(), password);
-      await setSession({ token: res.token, user: res.user });
+      await persistAuth(res);
       setSignedIn({ email: res.user.email });
       // Auto-close after a moment so the flow feels seamless.
       setTimeout(() => {
@@ -108,12 +108,12 @@ export default function AuthApp() {
               data-testid={mode === "login" ? "login-password-input" : "signup-password-input"}
               type="password"
               required
-              minLength={6}
+              minLength={8}
               autoComplete={mode === "login" ? "current-password" : "new-password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="bg-surfaceHover border border-border text-textPrimary placeholder-textMuted text-sm rounded-lg focus:border-borderFocus focus:ring-0 transition-colors duration-150 h-10 px-3 w-full"
-              placeholder="At least 6 characters"
+              placeholder="At least 8 characters"
             />
           </label>
           {error && (

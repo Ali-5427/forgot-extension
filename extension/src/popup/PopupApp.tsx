@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Bookmark, ExternalLink, LogOut, User } from "lucide-react";
+import { api } from "../lib/api";
 import { CONFIG } from "../lib/config";
 import { clearSession, getSession, onSessionChange } from "../lib/storage";
 
@@ -25,6 +26,7 @@ export default function PopupApp() {
     window.close();
   };
   const logout = async () => {
+    await api.logout();
     await clearSession();
     setEmail(null);
   };

@@ -1,25 +1,21 @@
 import { CONFIG } from "./config";
-import { getSession } from "./storage";
+import { getSession, setSession } from "./storage";
 
-export interface Memory {
+// Shape returned by POST /api/items/text on the live backend.
+// The real backend returns { id, title, status, ... } — we only need
+// enough to satisfy the pill success path. Extra fields are kept as-is.
+export interface SavedItem {
   id: string;
-  user_id: string;
-  capture_type: "highlight" | "content";
-  original_content: string;
-  source_url: string;
-  source_title: string;
-  source_domain: string;
-  content_hash: string;
-  ai_title: string | null;
-  ai_summary: string | null;
-  ai_topics: string[];
-  ai_keywords: string[];
-  ai_entities: string[];
-  processing_status: "pending" | "processing" | "done" | "failed";
-  created_at: string;
-  updated_at: string;
-  deduped?: boolean;
+  title?: string;
+  status?: string;
+  [k: string]: any;
 }
+
+// Kept for compatibility with the rest of the extension code paths.
+export type Memory = SavedItem & {
+  processing_status?: string;
+  deduped?: boolean;
+};
 
 export interface SaveMemoryInput {
   capture_type: "highlight" | "content";
@@ -29,49 +25,120 @@ export interface SaveMemoryInput {
   source_domain: string;
 }
 
+interface AuthPayload {
+  token: string;
+  refresh_token?: string;
+  user: { id: string; email: string; [k: string]: any };
+}
+
 async function request<T>(
   path: string,
   init: RequestInit & { auth?: boolean } = {}
 ): Promise<T> {
   const headers = new Headers(init.headers || {});
-  headers.set("Content-Type", "application/json");
+  if (!(init.body instanceof FormData)) {
+    headers.set("Content-Type", "application/json");
+  }
   if (init.auth) {
     const s = await getSession();
     if (s?.token) headers.set("Authorization", `Bearer ${s.token}`);
   }
-  const res = await fetch(`${CONFIG.BACKEND_URL}${path}`, {
-    ...init,
-    headers,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${CONFIG.BACKEND_URL}${path}`, { ...init, headers });
+  } catch (e: any) {
+    throw new Error(
+      e?.message
+        ? `Network error: ${e.message}`
+        : "Network error — check your connection."
+    );
+  }
   if (!res.ok) {
-    let detail = res.statusText;
+    let detail = res.statusText || `HTTP ${res.status}`;
     try {
-      const j = await res.json();
-      detail = (j.detail as string) || detail;
+      const j: any = await res.json();
+      detail =
+        (typeof j?.detail === "string" && j.detail) ||
+        (typeof j?.error === "string" && j.error) ||
+        (typeof j?.message === "string" && j.message) ||
+        detail;
     } catch {
       // ignore
     }
-    throw new Error(detail);
+    const err = new Error(detail) as Error & { status?: number };
+    err.status = res.status;
+    throw err;
   }
   return (await res.json()) as T;
 }
 
 export const api = {
+  // Live backend uses /register (not /signup). Kept exported as `signup`
+  // so AuthApp.tsx doesn't need to change.
   signup: (email: string, password: string) =>
-    request<{ token: string; user: any }>("/api/auth/signup", {
+    request<AuthPayload>("/api/auth/register", {
       method: "POST",
       body: JSON.stringify({ email, password }),
     }),
+
   login: (email: string, password: string) =>
-    request<{ token: string; user: any }>("/api/auth/login", {
+    request<AuthPayload>("/api/auth/login", {
       method: "POST",
       body: JSON.stringify({ email, password }),
     }),
-  me: () => request<{ id: string; email: string; created_at: string }>("/api/auth/me", { auth: true }),
-  createMemory: (input: SaveMemoryInput) =>
-    request<Memory>("/api/memories", {
-      method: "POST",
-      body: JSON.stringify(input),
+
+  me: () =>
+    request<{ id: string; email: string; [k: string]: any }>("/api/auth/me", {
       auth: true,
     }),
+
+  logout: async () => {
+    // Best-effort — token is stateless client-side either way.
+    try {
+      await request<any>("/api/auth/logout", { method: "POST", auth: true });
+    } catch {
+      // ignore server errors on logout
+    }
+  },
+
+  // The live backend saves via /api/items/text with { text, source_url?, source_title? }.
+  // We adapt our internal SaveMemoryInput to that shape and return a
+  // Memory-shaped object so the content-script / service-worker paths
+  // don't need to change.
+  createMemory: async (input: SaveMemoryInput): Promise<Memory> => {
+    const body: Record<string, unknown> = {
+      text: input.original_content,
+    };
+    if (input.source_url) body.source_url = input.source_url;
+    if (input.source_title) body.source_title = input.source_title;
+
+    const saved = await request<SavedItem>("/api/items/text", {
+      method: "POST",
+      body: JSON.stringify(body),
+      auth: true,
+    });
+
+    return {
+      ...saved,
+      processing_status: saved.status || "done",
+      deduped: false,
+    };
+  },
 };
+
+// Helper used by AuthApp: persist token + optional refresh_token in the
+// existing chrome.storage session shape.
+export async function persistAuth(payload: AuthPayload): Promise<void> {
+  await setSession({
+    token: payload.token,
+    refresh_token: payload.refresh_token,
+    user: {
+      id: payload.user.id,
+      email: payload.user.email,
+      created_at:
+        (payload.user as any).created_at ||
+        (payload.user as any).createdAt ||
+        new Date().toISOString(),
+    },
+  });
+}
