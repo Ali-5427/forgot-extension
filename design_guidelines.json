@@ -1,0 +1,142 @@
+{
+  "project_name": "Forgot AI",
+  "app_type": "browser_extension",
+  "archetype": "Tactical Minimalist & Swiss High-Contrast",
+  "file_type_convention": "JavaScript (.js and .jsx) - DO NOT use TypeScript (.tsx)",
+  "emotional_tone": "Silent, precise, frictionless, obsidian luxury",
+  "design_principles": [
+    "Shadow DOM Isolation: Pill button MUST render inside a closed/open Shadow Root with zero host CSS inheritance.",
+    "Viewport Intelligence: Pill button must detect mouse selection coordinates and viewport boundaries to position seamlessly without clipping.",
+    "Silent Micro-Interactions: Pure 150ms opacity fade transitions; strictly zero spring, bounce, or unnecessary movement.",
+    "Dark Monochrome Aesthetic: #09090B deep obsidian canvas with subtle 1px zinc borders and high-contrast crisp text."
+  ],
+  "colors": {
+    "background": "#09090B",
+    "surface": "#121215",
+    "surface_hover": "#18181B",
+    "surface_active": "#27272A",
+    "border": "#27272A",
+    "border_subtle": "#1E1E22",
+    "border_focus": "#52525B",
+    "text_primary": "#FAFAFA",
+    "text_secondary": "#A1A1AA",
+    "text_muted": "#71717A",
+    "accent_primary": "#FAFAFA",
+    "accent_text": "#09090B",
+    "pill_states": {
+      "idle": {
+        "bg": "#09090B",
+        "border": "#27272A",
+        "text": "#FAFAFA",
+        "icon": "#A1A1AA",
+        "hover_bg": "#18181B",
+        "hover_border": "#3F3F46"
+      },
+      "saving": {
+        "bg": "#18181B",
+        "border": "#3F3F46",
+        "text": "#A1A1AA",
+        "icon": "#A1A1AA"
+      },
+      "saved": {
+        "bg": "#022C22",
+        "border": "#065F46",
+        "text": "#34D399",
+        "icon": "#10B981"
+      },
+      "error": {
+        "bg": "#450A0A",
+        "border": "#991B1B",
+        "text": "#FCA5A5",
+        "icon": "#F43F5E"
+      }
+    }
+  },
+  "typography": {
+    "font_family_primary": "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+    "font_family_mono": "'JetBrains Mono', monospace",
+    "google_fonts_url": "https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap",
+    "shadow_dom_font_import": "@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600&display=swap');",
+    "sizes": {
+      "title": "text-xl font-bold tracking-tight text-[#FAFAFA]",
+      "body": "text-sm font-medium text-[#A1A1AA]",
+      "caption": "text-xs font-normal text-[#71717A]",
+      "button": "text-xs font-semibold tracking-wide text-[#FAFAFA]",
+      "pill": "13px"
+    }
+  },
+  "pill_button_spec": {
+    "container": "Shadow DOM root attached to document.body",
+    "height": "36px",
+    "padding": "0 14px",
+    "border_radius": "9999px",
+    "border": "1px solid #27272A",
+    "box_shadow": "0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5)",
+    "font_size": "13px",
+    "font_weight": "600",
+    "gap": "8px",
+    "z_index": "2147483647",
+    "transition": "opacity 150ms ease-in-out, background-color 150ms ease-in-out, border-color 150ms ease-in-out",
+    "positioning_rules": "Calculate selection bounding client rect. Position 8px above selection or fallback below if near top viewport edge. Keep 12px margin from right/left viewport edges."
+  },
+  "layouts": {
+    "auth_tab": {
+      "width": "max-w-[400px] w-full",
+      "wrapper_bg": "bg-[#09090B] min-h-screen flex flex-col justify-center items-center p-4",
+      "card_style": "bg-[#121215] border border-[#27272A] rounded-xl p-8 shadow-2xl space-y-6",
+      "logo_section": "flex items-center justify-center space-x-2 text-[#FAFAFA] font-bold text-xl mb-2",
+      "input_style": "bg-[#18181B] border border-[#27272A] text-[#FAFAFA] placeholder-[#71717A] text-sm rounded-lg focus:border-[#52525B] focus:ring-0 transition-colors duration-150 h-10 px-3 w-full",
+      "button_primary": "bg-[#FAFAFA] hover:bg-[#E4E4E7] text-[#09090B] font-semibold text-sm rounded-lg h-10 px-4 w-full transition-opacity duration-150 cursor-pointer"
+    },
+    "popup": {
+      "width": "w-[280px]",
+      "bg": "bg-[#09090B] text-[#FAFAFA] p-4 border border-[#27272A] rounded-none space-y-4 shadow-xl",
+      "header_user": "flex items-center space-x-2.5 p-2 bg-[#121215] border border-[#1E1E22] rounded-lg",
+      "user_email": "text-xs font-medium text-[#FAFAFA] truncate max-w-[190px]",
+      "button_open_app": "flex items-center justify-center space-x-2 w-full bg-[#FAFAFA] hover:bg-[#E4E4E7] text-[#09090B] font-semibold text-xs rounded-md py-2 px-3 transition-opacity duration-150",
+      "button_logout": "flex items-center justify-center space-x-2 w-full bg-[#18181B] hover:bg-[#27272A] text-[#A1A1AA] hover:text-[#FAFAFA] font-medium text-xs rounded-md py-2 px-3 border border-[#27272A] transition-colors duration-150"
+    }
+  },
+  "micro_interactions": {
+    "opacity_fade": "transition-opacity duration-150 ease-out",
+    "forbidden": ["bounce", "scale transformations", "gradients", "large shadows", "blur filters on scroll"]
+  },
+  "icons": {
+    "library": "lucide-react",
+    "list": [
+      "Bookmark",
+      "Check",
+      "AlertCircle",
+      "Loader2",
+      "LogOut",
+      "ExternalLink",
+      "User",
+      "Lock",
+      "Mail",
+      "Sparkles"
+    ]
+  },
+  "test_ids": {
+    "pill_button": "forgot-ai-pill-button",
+    "pill_status": "forgot-ai-pill-status",
+    "auth_container": "auth-tab-container",
+    "login_email": "login-email-input",
+    "login_password": "login-password-input",
+    "login_submit": "login-submit-button",
+    "signup_email": "signup-email-input",
+    "signup_password": "signup-password-input",
+    "signup_submit": "signup-submit-button",
+    "toggle_auth_mode": "toggle-auth-mode-button",
+    "popup_container": "extension-popup-container",
+    "popup_user_email": "popup-user-email",
+    "popup_open_app": "popup-open-app-button",
+    "popup_logout": "popup-logout-button",
+    "popup_login_redirect": "popup-login-redirect-button"
+  },
+  "instructions_to_main_agent": [
+    "Ensure all components use JavaScript (.js / .jsx) extensions.",
+    "Injected Shadow DOM button must inject inline styles or constructed stylesheet into shadowRoot to avoid leaking/inheriting parent page styles.",
+    "Store auth session in chrome.storage.local (fallback to localStorage if chrome.storage is unavailable in standalone dev mode).",
+    "Include data-testid attributes on all interactive elements as mapped in test_ids."
+  ]
+},
