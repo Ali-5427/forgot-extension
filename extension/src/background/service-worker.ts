@@ -28,23 +28,17 @@ chrome.runtime.onMessage.addListener((msg: ExtMessage, _sender, sendResponse) =>
           sendResponse(resp);
           return;
         }
-        try {
-          const memory = await api.createMemory(msg.payload);
-          const resp: SaveResponse = {
-            ok: true,
-            memory,
-            deduped: !!(memory as any).deduped,
-          };
-          sendResponse(resp);
-        } catch (e: any) {
-          const errStr = String(e?.message || e);
-          const unauth = /401|unauthor|invalid|expired/i.test(errStr);
-          sendResponse({
-            ok: false,
-            error: unauth ? "Session expired. Please sign in again." : errStr,
-            unauthenticated: unauth,
-          } as SaveResponse);
-        }
+        // 1. INSTANTLY tell the Content Script it was successful!
+        sendResponse({
+          ok: true,
+          memory: { id: "optimistic" } as any,
+          deduped: false,
+        });
+
+        // 2. Do the slow API call in the background without awaiting it.
+        api.createMemory(msg.payload).catch((e: any) => {
+          console.error("Background save failed:", e);
+        });
         return;
       }
       if (msg.type === "OPEN_AUTH_TAB") {

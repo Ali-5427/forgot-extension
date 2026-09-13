@@ -58,6 +58,10 @@ async function saveMemory(payload: {
   source_title: string;
 }): Promise<SaveResponse> {
   return new Promise((resolve) => {
+    const timeoutId = setTimeout(() => {
+      resolve({ ok: false, error: "Request timed out. Please try again." });
+    }, 12000);
+
     chrome.runtime.sendMessage(
       {
         type: "SAVE_MEMORY",
@@ -70,6 +74,7 @@ async function saveMemory(payload: {
         },
       },
       (resp: SaveResponse) => {
+        clearTimeout(timeoutId);
         if (chrome.runtime.lastError) {
           resolve({ ok: false, error: chrome.runtime.lastError.message || "runtime error" });
         } else {
@@ -114,19 +119,23 @@ function refreshModeA() {
         const snapshot = currentSelectionText();
         const content = snapshot.text || text;
         modeAPill?.setState("saving");
-        const resp = await saveMemory({
-          capture_type: "highlight",
-          original_content: content,
-          source_title: document.title || "",
-        });
-        if (resp.ok) {
-          modeAPill?.setState("saved");
-          if (modeAPill) autoDismiss(modeAPill);
-        } else if (resp.unauthenticated) {
-          modeAPill?.setState("error", "Sign in to save");
-          chrome.runtime.sendMessage({ type: "OPEN_AUTH_TAB" });
-        } else {
-          modeAPill?.setState("error", "Save failed — retry");
+        try {
+          const resp = await saveMemory({
+            capture_type: "highlight",
+            original_content: content,
+            source_title: document.title || "",
+          });
+          if (resp.ok) {
+            modeAPill?.setState("saved");
+            if (modeAPill) autoDismiss(modeAPill);
+          } else if (resp.unauthenticated) {
+            modeAPill?.setState("error", "Sign in to save");
+            chrome.runtime.sendMessage({ type: "OPEN_AUTH_TAB" });
+          } else {
+            modeAPill?.setState("error", "Save failed — retry");
+          }
+        } catch (err) {
+          modeAPill?.setState("error", "Extension reloaded. Please refresh the page.");
         }
       },
     });
@@ -161,37 +170,42 @@ function isVisibleEnough(el: HTMLElement): boolean {
   return rect.bottom > 0 && rect.top < vh + 200;
 }
 
-function injectModeBFor(target: HTMLElement) {
-  if (modeBPills.has(target)) return;
+function injectModeBFor(target: HTMLElement): boolean {
+  if (modeBPills.has(target)) return true;
   const extracted = adapter.extract(target);
-  if (!extracted || !extracted.text || extracted.text.length < 20) return;
+  if (!extracted || !extracted.text || extracted.text.length < 20) return false;
   const pill = createPill({
     testId: "forgot-ai-mode-b-pill",
     onClick: async () => {
       pill.setState("saving");
-      const resp = await saveMemory({
-        capture_type: "content",
-        original_content: extracted.text,
-        source_title: extracted.title || document.title || "",
-      });
-      if (resp.ok) {
-        pill.setState("saved");
-        // Keep saved pill for a bit longer since it's anchored, then remove.
-        setTimeout(() => {
-          pill.destroy();
-          modeBPills.delete(target);
-        }, 1800);
-      } else if (resp.unauthenticated) {
-        pill.setState("error", "Sign in to save");
-        chrome.runtime.sendMessage({ type: "OPEN_AUTH_TAB" });
-      } else {
-        pill.setState("error", "Save failed — retry");
+      try {
+        const resp = await saveMemory({
+          capture_type: "content",
+          original_content: extracted.text,
+          source_title: extracted.title || document.title || "",
+        });
+        if (resp.ok) {
+          pill.setState("saved");
+          // Keep saved pill for a bit longer since it's anchored, then remove.
+          setTimeout(() => {
+            pill.destroy();
+            modeBPills.delete(target);
+          }, 1800);
+        } else if (resp.unauthenticated) {
+          pill.setState("error", "Sign in to save");
+          chrome.runtime.sendMessage({ type: "OPEN_AUTH_TAB" });
+        } else {
+          pill.setState("error", "Save failed — retry");
+        }
+      } catch (err) {
+        pill.setState("error", "Extension reloaded. Please refresh the page.");
       }
     },
   });
   positionAnchored(pill, adapter.anchorEl(target));
   if (selectionActive) pill.host.style.display = "none";
   modeBPills.set(target, pill);
+  return true;
 }
 
 function cleanupModeB() {
@@ -208,8 +222,10 @@ function refreshModeB() {
   const visible = targets.filter(isVisibleEnough);
   for (const t of visible) {
     if (!modeBPills.has(t) && !scheduledTargets.has(t)) {
-      scheduledTargets.add(t);
-      injectModeBFor(t);
+      const success = injectModeBFor(t);
+      if (success) {
+        scheduledTargets.add(t);
+      }
     }
   }
   // Reposition existing pills so they follow scroll on next tick.

@@ -43,16 +43,57 @@ async function request<T>(
     const s = await getSession();
     if (s?.token) headers.set("Authorization", `Bearer ${s.token}`);
   }
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 12000);
+
   let res: Response;
   try {
-    res = await fetch(`${CONFIG.BACKEND_URL}${path}`, { ...init, headers });
+    res = await fetch(`${CONFIG.BACKEND_URL}${path}`, { ...init, headers, signal: controller.signal });
   } catch (e: any) {
     throw new Error(
-      e?.message
+      e?.name === 'AbortError'
+        ? "Network timeout — the server took too long to respond."
+        : e?.message
         ? `Network error: ${e.message}`
         : "Network error — check your connection."
     );
+  } finally {
+    clearTimeout(timeoutId);
   }
+
+  // Auto-refresh token on 401
+  if (res.status === 401 && init.auth) {
+    const s = await getSession();
+    if (s?.refresh_token) {
+      try {
+        const refreshRes = await fetch(`${CONFIG.BACKEND_URL}/api/auth/refresh`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refresh_token: s.refresh_token }),
+        });
+        
+        if (refreshRes.ok) {
+          const newAuth: AuthPayload = await refreshRes.json();
+          await setSession({
+            token: newAuth.token,
+            refresh_token: newAuth.refresh_token,
+            user: {
+              id: newAuth.user.id,
+              email: newAuth.user.email,
+              created_at: newAuth.user.created_at || newAuth.user.createdAt || new Date().toISOString(),
+            },
+          });
+          
+          // Retry the original request with the new token
+          headers.set("Authorization", `Bearer ${newAuth.token}`);
+          res = await fetch(`${CONFIG.BACKEND_URL}${path}`, { ...init, headers });
+        }
+      } catch (err) {
+        // Fall through to regular error handling if refresh fails
+      }
+    }
+  }
+
   if (!res.ok) {
     let detail = res.statusText || `HTTP ${res.status}`;
     try {
